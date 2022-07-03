@@ -1,16 +1,15 @@
-let allCell = document.querySelectorAll('tbody > tr > td')
-let allCellNum = new Array(16).fill(0)
+let allCell      = document.querySelectorAll('tbody > tr > td')
+let allCellNum   = new Array(16).fill(0)
 let topScoreCell = document.querySelector('.top-score')
-let topScore = window.localStorage.getItem('topScore') || 0
-let scoreCell = document.querySelector('.score')
-let score = 0
+let topScore     = window.localStorage.getItem('topScore-2048') || 0
+let scoreCell    = document.querySelector('.score')
+let score        = 0
 
 
 let replay = document.querySelector('.replay-btn')
 replay.addEventListener('click', function () {
   init()
 })
-
 
 /**
  * 禁用 body 的滚动条
@@ -23,7 +22,6 @@ document.body.addEventListener(
   }, { passive: false }
 )
 
-
 // 移动端 touch 检测
 let main = document.querySelector('.main')
 let touchesPoints = []
@@ -33,16 +31,16 @@ main.addEventListener('touchmove', function (e) {
 })
 main.addEventListener('touchend', function (e) {
   if (touchesPoints.length >= 2) {
-    let startpoint = touchesPoints[0]
-    let endPoint = touchesPoints[touchesPoints.length - 1]
-    let direction = getTouchDirection(startpoint, endPoint)
+    let startPoint = touchesPoints[0]
+    let endPoint   = touchesPoints[touchesPoints.length - 1]
+    let direction  = getTouchDirection(startPoint, endPoint)
     move(direction)
   }
   touchesPoints = []
 })
-function getTouchDirection(startpoint, lastPoint) {
-  let x = lastPoint[0] - startpoint[0]
-  let y = lastPoint[1] - startpoint[1]
+function getTouchDirection(startPoint, lastPoint) {
+  let x = lastPoint[0] - startPoint[0]
+  let y = lastPoint[1] - startPoint[1]
   if (Math.abs(x) > Math.abs(y)) {
     if (x > 0) return 'right'
     else return 'left'
@@ -52,7 +50,7 @@ function getTouchDirection(startpoint, lastPoint) {
   }
 }
 
-// 按键检测 方向键 WASD
+// 按键检测 方向键 & WASD
 window.addEventListener("keydown", function (e) {
   let direction = getKeydownDirection(e.code)
   move(direction)
@@ -81,6 +79,80 @@ function getKeydownDirection(keyCode) {
   }
   return direction
 }
+
+// 手柄检测
+const haveEvents       = 'ongamepadconnected' in window
+const controllers      = {}
+const btnIdx2Direction = {
+  '12': 'up',
+  '13': 'down',
+  '14': 'left',
+  '15': 'right',
+}
+
+function addGamepad(gamepad) {
+  controllers[gamepad.index] = gamepad
+  requestAnimationFrame(updateStatus)
+}
+
+function removeGamepad(gamepad) {
+  delete controllers[gamepad.index]
+}
+
+let lastBtnIdx = -1
+function updateStatus() {
+  if (!haveEvents) updateGamepads()
+
+  for (let i in controllers) {
+    const controller = controllers[i]
+    if (controller) {
+      // [{pressed: false, touched: false, value: 0}]
+      controller.buttons.forEach((button, idx) => {
+        if (btnIdx2Direction[idx]) {
+          if (button.value === 1) {
+            if (idx !== lastBtnIdx) {
+              lastBtnIdx = idx
+              move(btnIdx2Direction[idx])
+            }
+          } else if (idx === lastBtnIdx) {
+            lastBtnIdx = -1
+          }
+        }
+      })
+    }
+  }
+
+  requestAnimationFrame(updateStatus);
+}
+
+function updateGamepads() {
+  const gamepads = navigator.getGamepads
+    ? navigator.getGamepads()
+    : navigator?.webkitGetGamepads() || []
+  for (let i = 0; i < gamepads.length; i++) {
+    if (gamepads[i]) {
+      if (gamepads[i].index in controllers) {
+        controllers[gamepads[i].index] = gamepads[i]
+      } else addGamepad(gamepads[i]);
+    }
+  }
+}
+
+window.addEventListener("gamepadconnected", e => {
+  console.log(`${e.gamepad.id} connected`)
+  addGamepad(e.gamepad)
+  console.log(controllers)
+})
+window.addEventListener("gamepaddisconnected", e => {
+  console.log(`${e.gamepad.id} disconnected`)
+  removeGamepad(e.gamepad)
+  console.log(controllers)
+})
+
+if (!haveEvents) {
+  setInterval(updateGamepads, 1000)
+}
+
 
 
 function init() {
@@ -392,9 +464,9 @@ function updateScore(num=0) {
 }
 function updateTopScore() {
   topScore = score > topScore ? score : topScore
-  window.localStorage.setItem('topScore', topScore)
+  window.localStorage.setItem('topScore-2048', topScore)
   topScoreCell.innerHTML = 'TOP:' +
-    window.localStorage.getItem('topScore')
+    window.localStorage.getItem('topScore-2048')
 }
 
 function checkGameOver() {
